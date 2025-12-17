@@ -17,16 +17,21 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
 
     # ── Database ────────────────────────────────────
-    POSTGRES_HOST: str
+    DATABASE_URL: Optional[PostgresDsn] = None
+    POSTGRES_HOST: Optional[str] = None
     POSTGRES_PORT: int = 5432
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_DB: str
+    POSTGRES_USER: Optional[str] = None
+    POSTGRES_PASSWORD: Optional[str] = None
+    POSTGRES_DB: Optional[str] = None
 
     @computed_field
     @property
     def SQLALCHEMY_DATABASE_URL(self) -> PostgresDsn:
         """Генерируем DSN для подключения через psycopg."""
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+        if not all([self.POSTGRES_HOST, self.POSTGRES_USER, self.POSTGRES_PASSWORD, self.POSTGRES_DB]):
+            raise ValueError("DATABASE_URL or POSTGRES_* must be set")
         return MultiHostUrl.build(
             scheme="postgresql+psycopg",
             username=self.POSTGRES_USER,

@@ -1,14 +1,16 @@
 # app/main.py
 from contextlib import asynccontextmanager
 from sqlalchemy import text
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+import time
 
 from app.api.main import api_router
 from app.core.db import engine
 from app.core.config import settings
 from app.utils.custom_docs import custom_swagger_ui_html
+from app.core.logger import logger
 
 
 # ── lifespan: проверка подключения к БД ────────────────────────────────────────
@@ -50,6 +52,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def request_logger(request: Request, call_next):
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        logger.exception("request error %s %s", request.method, request.url.path)
+        raise
+    duration_ms = (time.perf_counter() - start) * 1000
+    logger.info("%s %s -> %s %.2fms", request.method, request.url.path, response.status_code, duration_ms)
+    return response
 
 
 # ── Кастомная OpenAPI схема ───────────────────────────────────────────────────

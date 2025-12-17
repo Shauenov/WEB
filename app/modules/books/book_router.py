@@ -22,6 +22,7 @@ def list_books(
     year: Optional[int] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    _=Depends(any_user_guard),
     session: Session = Depends(get_session),
 ):
     service = BookService(session)
@@ -31,6 +32,7 @@ def list_books(
 @router.get("/{book_id}", response_model=BookOut)
 def get_book(
     book_id: uuid.UUID,
+    _=Depends(any_user_guard),
     session: Session = Depends(get_session),
 ):
     service = BookService(session)
@@ -40,6 +42,7 @@ def get_book(
 @router.get("/{book_id}/links", response_model=dict)
 def get_book_links(
     book_id: uuid.UUID,
+    _=Depends(any_user_guard),
     session: Session = Depends(get_session),
 ):
     service = BookService(session)

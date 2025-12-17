@@ -48,3 +48,13 @@ def decode_token(token: str):
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError as e:
         raise HTTPException(status_code=403, detail=f"Invalid token: {str(e)}")
+
+def decode_refresh_token(token: str):
+    import jwt
+    try:
+        payload = jwt.decode(token, settings.JWT_REFRESH_SECRET, algorithms=["HS256"])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(status_code=403, detail=f"Invalid refresh token: {str(e)}")

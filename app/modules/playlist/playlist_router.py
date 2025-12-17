@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Form, Path, UploadFile, Depends
 from pydantic import Field
 
-from app.schemas import PlaylistPublic
+from app.schemas import PlaylistPublic, UpdatePlaylist
 from app.modules.playlist.playlist_service import PlaylistService
 from app.modules.auth.auth_router import any_user_guard, admin_guard
 
@@ -46,6 +46,14 @@ async def create_playlist(
     _=Depends(admin_guard),
 ):
     return await service.create(title=title, description=description, preview_img=preview_img)
+
+@playlist_router.patch("/{id}", response_model=PlaylistPublic)
+def update_playlist(
+    id: Annotated[uuid.UUID, Path(description="The id of playlist")],
+    data: UpdatePlaylist,
+    _=Depends(admin_guard),
+):
+    return service.updateById(str(id), data)
 
 @playlist_router.delete("/{id}", response_model=PlaylistPublic)
 def delete_playlist(

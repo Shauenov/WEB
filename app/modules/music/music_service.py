@@ -125,6 +125,73 @@ class MusicService():
             logger.error("error %s", e)
             raise HTTPException(status_code=500, detail="Internal server error")
 
+    async def update_media(
+        self,
+        *,
+        music_id: str,
+        playlist_id: uuid.UUID | None,
+        title: str | None,
+        description: str | None,
+        genre_id: uuid.UUID | None,
+        preview_img: UploadFile | None,
+        music: UploadFile | None,
+        background_tasks: BackgroundTasks,
+    ) -> MusicPublic:
+        try:
+            if playlist_id:
+                playlist = self.playlistService.findById(str(playlist_id))
+                if not playlist:
+                    raise HTTPException(status_code=400, detail="Playlist not found")
+
+            if genre_id:
+                genre = self.genreService.get_by_id(str(genre_id))
+                if not genre:
+                    raise HTTPException(status_code=400, detail="Genre not found")
+
+            update_data = UpdateMusic()
+            if playlist_id:
+                update_data.playlist_id = playlist_id
+            if title:
+                update_data.title = title
+            if description:
+                update_data.description = description
+            if genre_id:
+                update_data.genre_id = genre_id
+
+            if preview_img:
+                with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                    image_tmp_path = tmp.name
+                    tmp.write(await preview_img.read())
+
+                mime_type, _ = mimetypes.guess_type(preview_img.filename)
+                ext = mimetypes.guess_extension(mime_type) or ".jpg"
+                object_name = f"{uuid.uuid4()}{ext}"
+                image_key = self.minio.upload_file(object_name, image_tmp_path, settings.AWS_S3_BUCKET_NAME)
+                update_data.preview_img = image_key
+
+            if music:
+                self.validate_audio_file(music)
+                with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                    music_tmp_path = tmp.name
+                    tmp.write(await music.read())
+
+                mime_type, _ = mimetypes.guess_type(music.filename)
+                ext = mimetypes.guess_extension(mime_type) or ".mp3"
+                object_name = f"{uuid.uuid4()}{ext}"
+                music_key = self.minio.upload_file(object_name, music_tmp_path, settings.AWS_S3_BUCKET_NAME)
+                update_data.music_url = music_key
+
+                duration = self.get_audio_duration(music_tmp_path)
+                update_data.duration = duration
+                background_tasks.add_task(self.transcodeMusic, music_id, music_tmp_path)
+
+            return self.updateById(music_id, update_data)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error("error %s", e)
+            raise HTTPException(status_code=500, detail="Internal server error")
+
     def findById(self, id: str) -> MusicPublic | None:
         try:
             music = self.repo.findById(id)
@@ -147,6 +214,10 @@ class MusicService():
 
     def updateById(self, id: str, data: UpdateMusic) -> MusicPublic:
         try:
+            if data.playlist_id:
+                playlist = self.playlistService.findById(str(data.playlist_id))
+                if not playlist:
+                    raise HTTPException(status_code=400, detail="Playlist not found")
             music = self.repo.updateById(id, data)
             if not music:
                 raise HTTPException(status_code=404, detail="Music not found")

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import JSONResponse
 
 from app.core.security import decode_token
-from app.modules.auth.auth_dto import SignInDto, SignUpDto
+from app.modules.auth.auth_dto import SignInDto, SignUpDto, RefreshDto
 from app.modules.auth.auth_service import AuthService
 
 auth_router = APIRouter(prefix="/auth",)
@@ -43,6 +43,10 @@ def sign_in(data: SignInDto):
     resp = JSONResponse(content=result)
     resp.headers["Authorization"] = f"Bearer {result['access_token']}"
     return resp
+
+@auth_router.post("/refresh")
+def refresh(data: RefreshDto):
+    return service.refresh(data.refresh_token)
 
 
 @auth_router.post("/sign-up")

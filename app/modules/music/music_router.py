@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Form, Path, UploadFile, Depends
 from pydantic import Field
 
-from app.schemas import MusicPublic
+from app.schemas import MusicPublic, UpdateMusic
 from app.modules.music.music_service import MusicService
 from app.modules.auth.auth_router import any_user_guard, admin_guard
 
@@ -70,6 +70,37 @@ def delete_music(
     _=Depends(admin_guard),
 ):
     return service.deleteById(id)
+
+@music_router.patch("/{id}", response_model=MusicPublic)
+def update_music(
+    id: Annotated[uuid.UUID, Path(description="The id of music")],
+    data: UpdateMusic,
+    _=Depends(admin_guard),
+):
+    return service.updateById(str(id), data)
+
+@music_router.patch("/{id}/media", response_model=MusicPublic)
+async def update_music_media(
+    id: Annotated[uuid.UUID, Path(description="The id of music")],
+    background_tasks: BackgroundTasks,
+    playlist_id: Annotated[uuid.UUID | None, Form()] = None,
+    title: Annotated[str | None, Form()] = None,
+    description: Annotated[str | None, Form()] = None,
+    genre_id: Annotated[uuid.UUID | None, Form()] = None,
+    preview_img: UploadFile | None = None,
+    music: UploadFile | None = None,
+    _=Depends(admin_guard),
+):
+    return await service.update_media(
+        music_id=str(id),
+        playlist_id=playlist_id,
+        title=title,
+        description=description,
+        genre_id=genre_id,
+        preview_img=preview_img,
+        music=music,
+        background_tasks=background_tasks,
+    )
 
 
 @music_router.get("/{id}/links", response_model=dict, dependencies=[Depends(any_user_guard)])

@@ -59,10 +59,14 @@ class UpdateMusic(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     music_url: Optional[str] = None
+    preview_img: Optional[str] = None
+    duration: Optional[int] = None
     genre_id: Optional[uuid.UUID] = None
+    playlist_id: Optional[uuid.UUID] = None
 
 class MusicPublic(BaseModel):
     id: uuid.UUID
+    playlist_id: uuid.UUID
     title: str
     description: str
     preview_img: str

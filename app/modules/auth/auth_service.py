@@ -2,7 +2,13 @@
 from datetime import timedelta
 from fastapi import HTTPException
 from app.core.logger import logger
-from app.core.security import verify_password, get_hashed_password, create_access_token, create_refresh_token
+from app.core.security import (
+    verify_password,
+    get_hashed_password,
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+)
 from app.modules.user.user_repository import UserRepository
 from app.modules.auth.auth_dto import SignInDto, SignUpDto
 from app.models import User
@@ -47,4 +53,16 @@ class AuthService:
             raise
         except Exception as e:
             logger.error("sign_up error: %s", e)
+            raise HTTPException(status_code=500)
+
+    def refresh(self, refresh_token: str):
+        try:
+            payload = decode_refresh_token(refresh_token)
+            access = create_access_token(payload, expires_delta=timedelta(days=7))
+            refresh = create_refresh_token(payload, expires_delta=timedelta(days=14))
+            return {"access_token": access, "refresh_token": refresh}
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error("refresh error: %s", e)
             raise HTTPException(status_code=500)

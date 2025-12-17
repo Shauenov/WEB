@@ -12,3 +12,6 @@ class SignUpDto(BaseModel):
     phone: str = Field(pattern=PHONE_RE, examples=["+70000000000"])
     password: str = Field(min_length=8, examples=["admin123"])
     role: str | None = Field(default=None, examples=["user","admin"])
+
+class RefreshDto(BaseModel):
+    refresh_token: str = Field(min_length=10)
