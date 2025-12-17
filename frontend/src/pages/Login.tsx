@@ -23,14 +23,16 @@ export default function Login() {
   }
 
   return (
-    <div style={{ maxWidth: 360, margin: "80px auto", background: "#fff", padding: 24, borderRadius: 8 }}>
-      <h2>Вход</h2>
+    <div className="auth">
+      <div className="auth-card">
+        <h2>Вход</h2>
       <form onSubmit={submit} style={{ display: "grid", gap: 12 }}>
         <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+70000000000" />
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Пароль" />
         <button type="submit">Войти</button>
         {error && <div style={{ color: "red" }}>{error}</div>}
       </form>
+      </div>
     </div>
   );
 }

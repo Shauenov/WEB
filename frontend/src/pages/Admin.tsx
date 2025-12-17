@@ -13,6 +13,8 @@ import {
   deleteBook,
   listMusic,
   createMusic,
+  updateMusic,
+  updateMusicMedia,
   deleteMusic,
   listPlaylists,
   createPlaylist,
@@ -30,6 +32,13 @@ import { Nav } from "../components/Nav";
 
 type Section = "videos" | "books" | "music" | "playlists" | "genres" | "users";
 
+function withArchived(items: any[]) {
+  return items.map((item) => ({
+    ...item,
+    archived: item?.deleted_at ? "ARCHIVED" : "ACTIVE",
+  }));
+}
+
 export default function Admin() {
   const token = getToken()!;
   const [active, setActive] = useState<Section>("videos");
@@ -43,6 +52,7 @@ export default function Admin() {
   const [users, setUsers] = useState<any[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
   const [selectedBook, setSelectedBook] = useState<any | null>(null);
+  const [selectedMusic, setSelectedMusic] = useState<any | null>(null);
   const [selectedGenre, setSelectedGenre] = useState<any | null>(null);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
 
@@ -100,7 +110,7 @@ export default function Admin() {
   }
 
   return (
-    <div style={{ padding: 16 }}>
+    <div className="page">
       <Nav role="admin" />
       <h2>Админка</h2>
       {error && <div style={{ color: "red" }}>{error}</div>}
@@ -113,12 +123,8 @@ export default function Admin() {
           <button
             key={s}
             onClick={() => setActive(s)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 999,
-              border: active === s ? "1px solid #0f68f5" : "1px solid #e5e7eb",
-              background: active === s ? "#e7f0ff" : "#fff",
-            }}
+            className="pill"
+            data-active={active === s}
           >
             {s}
           </button>
@@ -201,8 +207,8 @@ export default function Admin() {
             }}
           />
           <ListTable
-            items={books}
-            columns={["id", "title", "author"]}
+            items={withArchived(books)}
+            columns={["id", "title", "author", "archived"]}
             actions={(item) => (
               <>
                 <button onClick={() => setSelectedBook(item)}>Edit</button>
@@ -244,23 +250,50 @@ export default function Admin() {
                 await refresh();
               }, "Music created");
             }}
+            playlists={playlists}
           />
           <ListTable
-            items={music}
-            columns={["id", "title", "description"]}
+            items={withArchived(music)}
+            columns={["id", "title", "description", "archived"]}
             actions={(item) => (
-              <button
-                onClick={async () => {
-                  if (!confirm("Delete music?")) return;
-                  await run(async () => {
-                    await deleteMusic(token, item.id);
-                    await refresh();
-                  }, "Music deleted");
-                }}
-              >
-                Delete
-              </button>
+              <>
+                <button onClick={() => setSelectedMusic(item)}>Edit</button>
+                <button
+                  onClick={async () => {
+                    if (!confirm("Delete music?")) return;
+                    await run(async () => {
+                      await deleteMusic(token, item.id);
+                      await refresh();
+                    }, "Music deleted");
+                  }}
+                >
+                  Delete
+                </button>
+              </>
             )}
+          />
+          <MusicUpdate
+            initial={selectedMusic}
+            onClear={() => setSelectedMusic(null)}
+            onUpdate={async (id, payload, files) => {
+              const ok = await run(async () => {
+                if (files?.preview || files?.music) {
+                  const fd = new FormData();
+                  if (payload.playlist_id) fd.append("playlist_id", payload.playlist_id);
+                  if (payload.title) fd.append("title", payload.title);
+                  if (payload.description) fd.append("description", payload.description);
+                  if (payload.genre_id) fd.append("genre_id", payload.genre_id);
+                  if (files.preview) fd.append("preview_img", files.preview);
+                  if (files.music) fd.append("music", files.music);
+                  await updateMusicMedia(token, id, fd);
+                } else {
+                  await updateMusic(token, id, payload);
+                }
+                await refresh();
+              }, "Music updated");
+              if (ok) setSelectedMusic(null);
+            }}
+            playlists={playlists}
           />
         </SectionCard>
       )}
@@ -276,8 +309,8 @@ export default function Admin() {
             }}
           />
           <ListTable
-            items={playlists}
-            columns={["id", "title", "description"]}
+            items={withArchived(playlists)}
+            columns={["id", "title", "description", "archived"]}
             actions={(item) => (
               <button
                 onClick={async () => {
@@ -306,8 +339,8 @@ export default function Admin() {
             }}
           />
           <ListTable
-            items={genres}
-            columns={["id", "name", "type"]}
+            items={withArchived(genres)}
+            columns={["id", "name", "type", "archived"]}
             actions={(item) => (
               <>
                 <button onClick={() => setSelectedGenre(item)}>Edit</button>
@@ -390,7 +423,7 @@ export default function Admin() {
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: 16, marginBottom: 20 }}>
+    <div className="panel" style={{ marginBottom: 20 }}>
       <h3>{title}</h3>
       {children}
     </div>
@@ -407,26 +440,26 @@ function ListTable({
   actions?: (item: any) => React.ReactNode;
 }) {
   return (
-    <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12 }}>
+    <table className="table">
       <thead>
         <tr>
           {columns.map((c) => (
-            <th key={c} style={{ textAlign: "left", borderBottom: "1px solid #eee", padding: "6px 4px" }}>
+            <th key={c}>
               {c}
             </th>
           ))}
-          {actions && <th style={{ borderBottom: "1px solid #eee" }}>actions</th>}
+          {actions && <th>actions</th>}
         </tr>
       </thead>
       <tbody>
         {items.map((item) => (
           <tr key={item.id}>
             {columns.map((c) => (
-              <td key={c} style={{ borderBottom: "1px solid #f3f4f6", padding: "6px 4px" }}>
+              <td key={c}>
                 {String(item[c] ?? "")}
               </td>
             ))}
-            {actions && <td style={{ display: "flex", gap: 6, padding: "6px 4px" }}>{actions(item)}</td>}
+            {actions && <td className="table-actions">{actions(item)}</td>}
           </tr>
         ))}
       </tbody>
@@ -627,7 +660,7 @@ function BookUpdate({
   );
 }
 
-function MusicForm({ onCreate }: { onCreate: (data: FormData) => Promise<void> }) {
+function MusicForm({ onCreate, playlists }: { onCreate: (data: FormData) => Promise<void>; playlists: any[] }) {
   const [playlistId, setPlaylistId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -651,13 +684,96 @@ function MusicForm({ onCreate }: { onCreate: (data: FormData) => Promise<void> }
       }}
       style={{ display: "grid", gap: 8, maxWidth: 520 }}
     >
-      <input value={playlistId} onChange={(e) => setPlaylistId(e.target.value)} placeholder="Playlist UUID" />
+      <select value={playlistId} onChange={(e) => setPlaylistId(e.target.value)}>
+        <option value="">Select playlist</option>
+        {playlists.map((pl) => (
+          <option key={pl.id} value={pl.id}>
+            {pl.title}
+          </option>
+        ))}
+      </select>
       <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
       <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
       <input value={genreId} onChange={(e) => setGenreId(e.target.value)} placeholder="Genre UUID (optional)" />
       <input type="file" accept="image/*" onChange={(e) => setPreview(e.target.files?.[0] ?? null)} />
       <input type="file" accept="audio/*,video/webm" onChange={(e) => setMusic(e.target.files?.[0] ?? null)} />
       <button type="submit">Create music</button>
+    </form>
+  );
+}
+
+function MusicUpdate({
+  initial,
+  onUpdate,
+  onClear,
+  playlists,
+}: {
+  initial: any | null;
+  onUpdate: (id: string, data: any, files?: { preview?: File | null; music?: File | null }) => Promise<void>;
+  onClear: () => void;
+  playlists: any[];
+}) {
+  const [id, setId] = useState("");
+  const [playlistId, setPlaylistId] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [genreId, setGenreId] = useState("");
+  const [preview, setPreview] = useState<File | null>(null);
+  const [music, setMusic] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (!initial) {
+      setId("");
+      setPlaylistId("");
+      setTitle("");
+      setDescription("");
+      setGenreId("");
+      setPreview(null);
+      setMusic(null);
+      return;
+    }
+    setId(initial.id ?? "");
+    setPlaylistId(initial.playlist_id ?? "");
+    setTitle(initial.title ?? "");
+    setDescription(initial.description ?? "");
+    setGenreId(initial.genre_id ?? "");
+    setPreview(null);
+    setMusic(null);
+  }, [initial]);
+
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!id) return;
+        const payload: any = {};
+        if (playlistId) payload.playlist_id = playlistId;
+        if (title) payload.title = title;
+        if (description) payload.description = description;
+        if (genreId) payload.genre_id = genreId;
+        await onUpdate(id, payload, { preview, music });
+      }}
+      style={{ display: "grid", gap: 8, maxWidth: 520, marginTop: 12 }}
+    >
+      <h4>Update music</h4>
+      <input value={id} onChange={(e) => setId(e.target.value)} placeholder="Music ID" />
+      <select value={playlistId} onChange={(e) => setPlaylistId(e.target.value)}>
+        <option value="">Select playlist</option>
+        {playlists.map((pl) => (
+          <option key={pl.id} value={pl.id}>
+            {pl.title}
+          </option>
+        ))}
+      </select>
+      <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
+      <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
+      <input value={genreId} onChange={(e) => setGenreId(e.target.value)} placeholder="Genre UUID" />
+      <input type="file" accept="image/*" onChange={(e) => setPreview(e.target.files?.[0] ?? null)} />
+      <input type="file" accept="audio/*,video/webm" onChange={(e) => setMusic(e.target.files?.[0] ?? null)} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button type="submit">Update</button>
+        <button type="button" onClick={onClear}>Clear</button>
+      </div>
     </form>
   );
 }

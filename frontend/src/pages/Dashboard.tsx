@@ -8,6 +8,11 @@ type Profile = { fullname: string; role: "user" | "admin" };
 
 type Category = "videos" | "books" | "music" | "playlists";
 
+function isArchived(item: any) {
+  if (item?.status && String(item.status).toUpperCase() === "ARCHIVED") return true;
+  return Boolean(item?.deleted_at);
+}
+
 export default function Dashboard() {
   const token = getToken()!;
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -56,11 +61,17 @@ export default function Dashboard() {
     })();
   }, [token]);
 
-  const items = useMemo(() => data[active] || [], [data, active]);
+  const items = useMemo(() => {
+    const list = data[active] || [];
+    if (profile?.role === "user") {
+      return list.filter((item) => !isArchived(item));
+    }
+    return list;
+  }, [data, active, profile?.role]);
 
   if (error) {
     return (
-      <div style={{ padding: 16 }}>
+      <div className="page">
         {error}{" "}
         <button
           onClick={() => {
@@ -75,7 +86,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ padding: 16 }}>
+    <div className="page">
       <Nav role={profile?.role ?? "user"} />
       <header style={{ marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>Hello, {profile?.role ?? "user"}</h2>
@@ -87,12 +98,8 @@ export default function Dashboard() {
           <button
             key={cat}
             onClick={() => setActive(cat)}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 999,
-              border: active === cat ? "1px solid #0f68f5" : "1px solid #e5e7eb",
-              background: active === cat ? "#e7f0ff" : "#fff",
-            }}
+            className="pill"
+            data-active={active === cat}
           >
             {cat}
           </button>
@@ -101,16 +108,27 @@ export default function Dashboard() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
         {items.map((item) => (
-          <Card key={item.id} type={active} item={item} token={token} />
+          <Card key={item.id} type={active} item={item} token={token} role={profile?.role ?? "user"} />
         ))}
       </div>
     </div>
   );
 }
 
-function Card({ type, item, token }: { type: Category; item: any; token: string }) {
+function Card({
+  type,
+  item,
+  token,
+  role,
+}: {
+  type: Category;
+  item: any;
+  token: string;
+  role: "user" | "admin";
+}) {
   const title = item.title || item.name || "Без названия";
   const description = item.description || item.author || "";
+  const archived = isArchived(item);
 
   const preview =
     (type === "videos" && item.preview_img) ||
@@ -125,6 +143,8 @@ function Card({ type, item, token }: { type: Category; item: any; token: string 
   const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [playlistItems, setPlaylistItems] = useState<any[] | null>(null);
+  const [playlistError, setPlaylistError] = useState("");
 
   useEffect(() => {
     let ignore = false;
@@ -193,11 +213,25 @@ function Card({ type, item, token }: { type: Category; item: any; token: string 
         })
         .catch(() => {});
     }
+    if (type === "playlists" && open && playlistItems === null) {
+      listMusic(token, item.id)
+        .then((res) => {
+          if (ignore) return;
+          const filtered = role === "user" ? res.filter((m: any) => !isArchived(m)) : res;
+          setPlaylistItems(filtered);
+          setPlaylistError("");
+        })
+        .catch((e: any) => {
+          if (ignore) return;
+          setPlaylistItems([]);
+          setPlaylistError(e.message || "Failed to load playlist");
+        });
+    }
     return () => {
       ignore = true;
       if (playlistUrl) URL.revokeObjectURL(playlistUrl);
     };
-  }, [type, open, playUrl, musicUrl, bookUrl, playlistUrl, previewUrl, token, item.id, preview]);
+  }, [type, open, playUrl, musicUrl, bookUrl, playlistUrl, previewUrl, token, item.id, preview, playlistItems, role]);
 
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -212,9 +246,11 @@ function Card({ type, item, token }: { type: Category; item: any; token: string 
       ) : previewUrl ? (
         <img src={previewUrl} alt={title} style={{ width: "100%", borderRadius: 8, objectFit: "cover", aspectRatio: "16/9" }} />
       ) : (
-        <div style={{ width: "100%", borderRadius: 8, background: "#f0f2f5", aspectRatio: "16/9" }} />
+        <div style={{ width: "100%", borderRadius: 8, background: "var(--surface-muted)", aspectRatio: "16/9" }} />
       )}
-      <div style={{ fontWeight: 600 }}>{title}</div>
+      <div style={{ fontWeight: 600 }}>
+        {title} {role === "admin" && archived && <span style={{ color: "#dc2626" }}>(ARCHIVED)</span>}
+      </div>
       <div style={{ color: "#555", fontSize: 14, minHeight: 40 }}>{description}</div>
       {type === "videos" && (
         <button onClick={() => setOpen((v) => !v)}>
@@ -231,6 +267,81 @@ function Card({ type, item, token }: { type: Category; item: any; token: string 
           {open ? "Скрыть" : "Читать"}
         </button>
       )}
+      {type === "playlists" && (
+        <button onClick={() => setOpen((v) => !v)}>
+          {open ? "Скрыть" : "Открыть плейлист"}
+        </button>
+      )}
+      {type === "playlists" && open && (
+        <div style={{ display: "grid", gap: 12, marginTop: 8 }}>
+          {playlistError && <div style={{ color: "#b91c1c" }}>{playlistError}</div>}
+          {!playlistError && playlistItems?.length === 0 && <div style={{ color: "#666" }}>Плейлист пуст</div>}
+          {playlistItems?.map((track) => (
+            <PlaylistTrack key={track.id} item={track} token={token} role={role} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlaylistTrack({ item, token, role }: { item: any; token: string; role: "user" | "admin" }) {
+  const title = item.title || "Без названия";
+  const description = item.description || "";
+  const archived = isArchived(item);
+  const [open, setOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [musicUrl, setMusicUrl] = useState<string | null>(null);
+  const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    if (!previewUrl) {
+      if (item.preview_img && item.preview_img.startsWith("http")) {
+        setPreviewUrl(item.preview_img);
+      } else {
+        musicLinks(token, item.id)
+          .then((res) => {
+            if (!ignore && res.preview_img) setPreviewUrl(res.preview_img);
+          })
+          .catch(() => {});
+      }
+    }
+    if (open && !musicUrl) {
+      musicLinks(token, item.id)
+        .then((res) => {
+          if (ignore) return;
+          if (res.playlist) {
+            const blob = new Blob([res.playlist], { type: "application/vnd.apple.mpegurl" });
+            const url = URL.createObjectURL(blob);
+            setPlaylistUrl(url);
+            setMusicUrl(url);
+          } else {
+            setMusicUrl(res.music_url);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      ignore = true;
+      if (playlistUrl) URL.revokeObjectURL(playlistUrl);
+    };
+  }, [open, musicUrl, playlistUrl, previewUrl, token, item.id, item.preview_img]);
+
+  return (
+    <div style={{ border: "1px solid #eef2f7", borderRadius: 8, padding: 10, display: "grid", gap: 8 }}>
+      {open && musicUrl ? (
+        <AudioPlayer url={musicUrl} />
+      ) : previewUrl ? (
+        <img src={previewUrl} alt={title} style={{ width: "100%", borderRadius: 6, objectFit: "cover", aspectRatio: "16/9" }} />
+      ) : (
+        <div style={{ width: "100%", borderRadius: 6, background: "var(--surface-muted)", aspectRatio: "16/9" }} />
+      )}
+      <div style={{ fontWeight: 600 }}>
+        {title} {role === "admin" && archived && <span style={{ color: "#dc2626" }}>(ARCHIVED)</span>}
+      </div>
+      <div style={{ color: "#555", fontSize: 14 }}>{description}</div>
+      <button onClick={() => setOpen((v) => !v)}>{open ? "Скрыть" : "Слушать"}</button>
     </div>
   );
 }

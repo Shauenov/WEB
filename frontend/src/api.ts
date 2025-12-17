@@ -85,8 +85,10 @@ export async function deleteBook(token: string, id: string) {
   if (!res.ok) throw new Error("Failed to delete book");
   return res.json();
 }
-export async function listMusic(token: string) {
-  const res = await fetch(`${API}/music/musics/`, { headers: headers(token) });
+export async function listMusic(token: string, playlistId?: string) {
+  const url = new URL(`${API}/music/musics/`);
+  if (playlistId) url.searchParams.set("playlist_id", playlistId);
+  const res = await fetch(url.toString(), { headers: headers(token) });
   if (!res.ok) throw new Error("Failed to load music");
   return res.json();
 }
@@ -98,6 +100,16 @@ export async function musicLinks(token: string, id: string) {
 export async function createMusic(token: string, data: FormData) {
   const res = await fetch(`${API}/music/musics/`, { method: "POST", headers: authHeaders(token), body: data });
   if (!res.ok) throw new Error("Failed to create music");
+  return res.json();
+}
+export async function updateMusic(token: string, id: string, data: any) {
+  const res = await fetch(`${API}/music/musics/${id}`, { method: "PATCH", headers: headers(token), body: JSON.stringify(data) });
+  if (!res.ok) throw new Error("Failed to update music");
+  return res.json();
+}
+export async function updateMusicMedia(token: string, id: string, data: FormData) {
+  const res = await fetch(`${API}/music/musics/${id}/media`, { method: "PATCH", headers: authHeaders(token), body: data });
+  if (!res.ok) throw new Error("Failed to update music media");
   return res.json();
 }
 export async function deleteMusic(token: string, id: string) {
