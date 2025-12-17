@@ -1,0 +1,11 @@
+.env
+.venv
+__pycache__
+**/__pycache__
+
+.gitlab-ci-local
+
+database/*
+.ruff_cache
+
+assets/transcodings

@@ -1,0 +1,4 @@
+exclude = [
+  "alembic",
+]
+lint.ignore = ["E711"]

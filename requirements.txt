@@ -1,0 +1,44 @@
+fastapi
+uvicorn
+sqlmodel
+SQLAlchemy
+psycopg[binary]
+alembic
+psycopg2-binary
+
+
+pydantic
+pydantic-settings
+python-multipart
+
+
+bcrypt==4.1.2
+passlib[bcrypt]==1.7.4
+PyJWT
+
+minio
+requests
+python-dotenv
+
+boto3
+botocore
+python-dotenv
+
+
+
+
+# Кеш/очереди (по желанию)
+redis
+
+# Метрики Prometheus (если включишь)
+prometheus-fastapi-instrumentator
+prometheus_client
+
+# Логи в Loki (если включишь)
+python-logging-loki
+
+# Оптимизации сервера (опционально)
+uvloop
+httptools
+watchfiles
+scikit-learn
