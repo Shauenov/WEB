@@ -21,12 +21,11 @@ def db_url() -> str:
 
 engine = create_engine(db_url(), future=True)
 with engine.connect() as conn:
-    has_alembic = conn.execute(text("SELECT to_regclass('alembic_version')")).scalar() is not None
     has_tables = conn.execute(
         text("SELECT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename!='alembic_version')")
     ).scalar()
 
-if has_tables and not has_alembic:
+if has_tables:
     raise SystemExit(0)
 raise SystemExit(1)
 PY
