@@ -20,6 +20,7 @@ RUN addgroup --system app && adduser --system --ingroup app app
 
 # Код приложения
 COPY --chown=app:app ./ /app
+RUN chmod +x /app/entrypoint.sh
 
 USER app
 EXPOSE 8000
@@ -28,4 +29,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --retries=10 \
   CMD curl -fsS http://localhost:8000/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/entrypoint.sh"]
