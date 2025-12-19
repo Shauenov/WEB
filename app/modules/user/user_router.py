@@ -32,8 +32,7 @@ def get_users(
 
 @user_router.post("/", response_model=UserPublic)
 def create_user(
-    data: CreateUser = Body(...),
-    _=Depends(admin_guard)
+    data: CreateUser = Body(...)
 ):
     return service.create_user(data)
 
