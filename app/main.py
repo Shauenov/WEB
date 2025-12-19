@@ -44,6 +44,7 @@ else:
         "http://127.0.0.1:5173",
         "https://juie.app",
         "https://web-front-etko.onrender.com",
+        "http://localhost:5173",
     ]
 
 app.add_middleware(

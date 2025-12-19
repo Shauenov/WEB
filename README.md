@@ -63,15 +63,11 @@ npm run dev
 Frontend UI:
 - http://localhost:5173
 
-## Миграции
-- В локальном режиме таблицы создаются автоматически (SQLModel `create_all`).
-- Если используете Alembic и есть миграции, выполните:
-
-```bash
-cd backend
-alembic upgrade head
-```
-
+## Таблицы без миграций
+- Таблицы создаются автоматически при старте контейнера (Docker CMD вызывает `python app/cli.py create-tables --force`).
+- Локально вручную:  
+  - `python app/cli.py create-tables` (или `--drop-existing` чтобы пересоздать).
+  
 > Убедитесь, что `DATABASE_URL` задан в `backend/.env`.
 
 ## Переменные окружения
