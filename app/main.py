@@ -35,7 +35,8 @@ app = FastAPI(
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 if settings.ENVIRONMENT == "production":
-    origins = ["https://juie.app"]
+    origins = ["https://juie.app", "https://web-front-etko.onrender.com"]
+
 else:
     origins = [
         "http://localhost",
